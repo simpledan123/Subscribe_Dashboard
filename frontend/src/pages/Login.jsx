@@ -28,34 +28,47 @@ function Login({ onLogin }) {
   }
 
   return (
-    <div className="login-container">
-      <div className="login-box">
+    <div className="login-container" data-testid="login-container">
+      <div className="login-box" data-testid="login-box">
         <h2>SaaS Admin</h2>
-        <p className="login-subtitle">{isRegister ? '회원가입' : '로그인'}</p>
-        
-        {error && <div className="error-msg">{error}</div>}
-        
-        <form onSubmit={handleSubmit}>
+        <p className="login-subtitle" data-testid="login-mode">
+          {isRegister ? '회원가입' : '로그인'}
+        </p>
+
+        {error && (
+          <div className="error-msg" data-testid="login-error">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} data-testid="login-form">
           <input
+            data-testid="login-username"
             type="text"
             placeholder="아이디"
             value={form.username}
-            onChange={(e) => setForm({...form, username: e.target.value})}
+            onChange={(e) => setForm({ ...form, username: e.target.value })}
             required
           />
           <input
+            data-testid="login-password"
             type="password"
             placeholder="비밀번호"
             value={form.password}
-            onChange={(e) => setForm({...form, password: e.target.value})}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
             required
           />
-          <button type="submit">{isRegister ? '회원가입' : '로그인'}</button>
+          <button data-testid="login-submit" type="submit">
+            {isRegister ? '회원가입' : '로그인'}
+          </button>
         </form>
-        
+
         <p className="toggle-text">
           {isRegister ? '이미 계정이 있나요?' : '계정이 없나요?'}
-          <span onClick={() => setIsRegister(!isRegister)}>
+          <span
+            data-testid="login-toggle"
+            onClick={() => setIsRegister(!isRegister)}
+          >
             {isRegister ? ' 로그인' : ' 회원가입'}
           </span>
         </p>

@@ -35,19 +35,50 @@ function App() {
   return (
     <Router>
       <div className="app">
-        <nav className="sidebar">
-          <h2>SaaS Admin</h2>
+        <nav className="sidebar" data-testid="sidebar">
+          <h2 data-testid="app-title">SaaS Admin</h2>
           <ul>
-            <li><Link to="/">대시보드</Link></li>
-            <li><Link to="/tenants">고객사 관리</Link></li>
-            <li><Link to="/plans">플랜 관리</Link></li>
-            <li><Link to="/subscriptions">구독 관리</Link></li>
-            <li><Link to="/invoices">청구서 관리</Link></li>
-            <li><Link to="/usages">사용량 관리</Link></li>
+            <li>
+              <Link to="/" data-testid="nav-dashboard">
+                대시보드
+              </Link>
+            </li>
+            <li>
+              <Link to="/tenants" data-testid="nav-tenants">
+                고객사 관리
+              </Link>
+            </li>
+            <li>
+              <Link to="/plans" data-testid="nav-plans">
+                플랜 관리
+              </Link>
+            </li>
+            <li>
+              <Link to="/subscriptions" data-testid="nav-subs">
+                구독 관리
+              </Link>
+            </li>
+            <li>
+              <Link to="/invoices" data-testid="nav-invoices">
+                청구서 관리
+              </Link>
+            </li>
+            <li>
+              <Link to="/usages" data-testid="nav-usages">
+                사용량 관리
+              </Link>
+            </li>
           </ul>
-          <button className="logout-btn" onClick={handleLogout}>로그아웃</button>
+          <button
+            className="logout-btn"
+            data-testid="logout"
+            onClick={handleLogout}
+          >
+            로그아웃
+          </button>
         </nav>
-        <main className="content">
+
+        <main className="content" data-testid="content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/tenants" element={<Tenants />} />
