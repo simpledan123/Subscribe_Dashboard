@@ -34,9 +34,6 @@ B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설�
 - 결제 상태 관리 (PENDING, PAID, OVERDUE)
 - 결제 완료 처리
 
-### 인증
-- JWT 기반 관리자 인증
-- 회원가입 / 로그인 / 로그아웃
 
 ## 기술 스택
 
@@ -55,26 +52,6 @@ B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설�
 - Axios
 - Recharts
 
-## 프로젝트 구조
-```
-subscription-platform/
-├── src/main/java/com/saas/subscriptionplatform/
-│   ├── config/          # CORS, Security 설정
-│   ├── controller/      # REST API 컨트롤러
-│   ├── entity/          # JPA 엔티티
-│   ├── repository/      # 데이터 접근 계층
-│   ├── security/        # JWT 유틸
-│   └── service/         # 비즈니스 로직
-├── src/main/resources/
-│   └── application.yml
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   ├── App.jsx
-│   │   └── App.css
-│   └── package.json
-└── build.gradle
-```
 
 ## 실행 방법
 
@@ -102,6 +79,31 @@ npm install
 npm run dev
 ```
 - 웹: http://localhost:5173
+
+## QA Automation (Python + pytest + Playwright)
+
+- E2E tests run on every PR via GitHub Actions
+- Covers: Login, Navigation/Logout, Tenant CRUD, Plan CRUD, Subscription → Invoice → Pay flow
+
+### CI Badge
+[![QA (pytest + playwright)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml/badge.svg)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml)
+
+### Run locally
+# Terminal 1 (backend)
+./gradlew bootRun
+
+# Terminal 2 (frontend)
+cd frontend
+npm install
+npm run dev
+
+# Terminal 3 (qa)
+cd qa
+python -m venv .venv
+source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+python -m playwright install chromium
+pytest -m e2e --html=test-results/report.html --self-contained-html
 
 ## API 명세
 
