@@ -34,6 +34,11 @@ function Tenants() {
     setEditing(tenant.id)
   }
 
+  const handleCancel = () => {
+    setEditing(null)
+    setForm({ companyName: '', email: '', phone: '' })
+  }
+
   const handleDelete = async (id) => {
     if (window.confirm('정말 삭제하시겠습니까?')) {
       await axios.delete(`${API}/tenants/${id}`)
@@ -42,35 +47,45 @@ function Tenants() {
   }
 
   return (
-    <div>
-      <h1>고객사 관리</h1>
-      
-      <form onSubmit={handleSubmit} className="form-card">
+    <div data-testid="tenant-page">
+      <h1 data-testid="tenant-title">고객사 관리</h1>
+
+      <form onSubmit={handleSubmit} className="form-card" data-testid="tenant-form">
         <input
+          data-testid="tenant-companyName"
           type="text"
           placeholder="회사명"
           value={form.companyName}
-          onChange={(e) => setForm({...form, companyName: e.target.value})}
+          onChange={(e) => setForm({ ...form, companyName: e.target.value })}
           required
         />
         <input
+          data-testid="tenant-email"
           type="email"
           placeholder="이메일"
           value={form.email}
-          onChange={(e) => setForm({...form, email: e.target.value})}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
           required
         />
         <input
+          data-testid="tenant-phone"
           type="text"
           placeholder="전화번호"
           value={form.phone}
-          onChange={(e) => setForm({...form, phone: e.target.value})}
+          onChange={(e) => setForm({ ...form, phone: e.target.value })}
         />
-        <button type="submit">{editing ? '수정' : '추가'}</button>
-        {editing && <button type="button" onClick={() => { setEditing(null); setForm({ companyName: '', email: '', phone: '' }) }}>취소</button>}
+        <button data-testid="tenant-submit" type="submit">
+          {editing ? '수정' : '추가'}
+        </button>
+
+        {editing && (
+          <button data-testid="tenant-cancel" type="button" onClick={handleCancel}>
+            취소
+          </button>
+        )}
       </form>
 
-      <table className="data-table">
+      <table className="data-table" data-testid="tenant-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -82,16 +97,34 @@ function Tenants() {
           </tr>
         </thead>
         <tbody>
-          {tenants.map(tenant => (
-            <tr key={tenant.id}>
+          {tenants.map((tenant) => (
+            <tr key={tenant.id} data-testid={`tenant-row-${tenant.id}`}>
               <td>{tenant.id}</td>
               <td>{tenant.companyName}</td>
               <td>{tenant.email}</td>
               <td>{tenant.phone}</td>
-              <td><span className={`status ${tenant.status.toLowerCase()}`}>{tenant.status}</span></td>
               <td>
-                <button onClick={() => handleEdit(tenant)}>수정</button>
-                <button onClick={() => handleDelete(tenant.id)} className="delete">삭제</button>
+                <span
+                  data-testid={`tenant-status-${tenant.id}`}
+                  className={`status ${tenant.status.toLowerCase()}`}
+                >
+                  {tenant.status}
+                </span>
+              </td>
+              <td>
+                <button
+                  data-testid={`tenant-edit-${tenant.id}`}
+                  onClick={() => handleEdit(tenant)}
+                >
+                  수정
+                </button>
+                <button
+                  data-testid={`tenant-delete-${tenant.id}`}
+                  onClick={() => handleDelete(tenant.id)}
+                  className="delete"
+                >
+                  삭제
+                </button>
               </td>
             </tr>
           ))}

@@ -27,14 +27,14 @@ function Usages() {
   }
 
   const getTenantName = (id) => {
-    const tenant = tenants.find(t => t.id === id)
+    const tenant = tenants.find((t) => t.id === id)
     return tenant ? tenant.companyName : '-'
   }
 
   const getPlanLimit = (tenantId) => {
-    const sub = subscriptions.find(s => s.tenant?.id === tenantId && s.status === 'ACTIVE')
+    const sub = subscriptions.find((s) => s.tenant?.id === tenantId && s.status === 'ACTIVE')
     if (!sub) return null
-    return plans.find(p => p.id === sub.plan?.id)
+    return plans.find((p) => p.id === sub.plan?.id)
   }
 
   const simulateApiCall = async (tenantId) => {
@@ -54,29 +54,38 @@ function Usages() {
   }
 
   return (
-    <div>
-      <h1>사용량 관리</h1>
+    <div data-testid="usage-page">
+      <h1 data-testid="usage-title">사용량 관리</h1>
 
-      <div className="usage-cards">
-        {tenants.map(tenant => {
-          const usage = usages.find(u => u.tenant?.id === tenant.id)
+      <div className="usage-cards" data-testid="usage-cards">
+        {tenants.map((tenant) => {
+          const usage = usages.find((u) => u.tenant?.id === tenant.id)
           const plan = getPlanLimit(tenant.id)
           const apiCalls = usage?.apiCalls || 0
           const maxCalls = plan?.maxApiCalls || 0
           const percent = getUsagePercent(apiCalls, maxCalls)
 
           return (
-            <div key={tenant.id} className="usage-card">
+            <div
+              key={tenant.id}
+              className="usage-card"
+              data-testid={`usage-card-${tenant.id}`}
+            >
               <h3>{tenant.companyName}</h3>
-              <p className="plan-name">{plan ? plan.name : '구독 없음'}</p>
-              
+
+              <p className="plan-name" data-testid={`usage-plan-${tenant.id}`}>
+                {plan ? plan.name : '구독 없음'}
+              </p>
+
               <div className="usage-item">
                 <div className="usage-label">
                   <span>API 호출</span>
-                  <span>{apiCalls.toLocaleString()} / {maxCalls.toLocaleString()}</span>
+                  <span data-testid={`usage-apiCalls-${tenant.id}`}>
+                    {apiCalls.toLocaleString()} / {maxCalls.toLocaleString()}
+                  </span>
                 </div>
                 <div className="usage-bar">
-                  <div 
+                  <div
                     className={`usage-fill ${percent >= 90 ? 'danger' : percent >= 70 ? 'warning' : ''}`}
                     style={{ width: `${percent}%` }}
                   ></div>
@@ -86,10 +95,12 @@ function Usages() {
               <div className="usage-item">
                 <div className="usage-label">
                   <span>저장공간</span>
-                  <span>{usage?.storageUsed || 0} MB / {plan?.maxStorage || 0} MB</span>
+                  <span data-testid={`usage-storage-${tenant.id}`}>
+                    {usage?.storageUsed || 0} MB / {plan?.maxStorage || 0} MB
+                  </span>
                 </div>
                 <div className="usage-bar">
-                  <div 
+                  <div
                     className="usage-fill"
                     style={{ width: `${getUsagePercent(usage?.storageUsed || 0, plan?.maxStorage)}%` }}
                   ></div>
@@ -99,17 +110,20 @@ function Usages() {
               <div className="usage-item">
                 <div className="usage-label">
                   <span>사용자</span>
-                  <span>{usage?.activeUsers || 0} / {plan?.maxUsers || 0}명</span>
+                  <span data-testid={`usage-users-${tenant.id}`}>
+                    {usage?.activeUsers || 0} / {plan?.maxUsers || 0}명
+                  </span>
                 </div>
                 <div className="usage-bar">
-                  <div 
+                  <div
                     className="usage-fill"
                     style={{ width: `${getUsagePercent(usage?.activeUsers || 0, plan?.maxUsers)}%` }}
                   ></div>
                 </div>
               </div>
 
-              <button 
+              <button
+                data-testid={`usage-simulate-${tenant.id}`}
                 className="simulate-btn"
                 onClick={() => simulateApiCall(tenant.id)}
                 disabled={!plan}

@@ -38,31 +38,37 @@ function Invoices() {
   }
 
   const getTenantName = (id) => {
-    const tenant = tenants.find(t => t.id === id)
+    const tenant = tenants.find((t) => t.id === id)
     return tenant ? tenant.companyName : '-'
   }
 
   return (
-    <div>
-      <h1>청구서 관리</h1>
+    <div data-testid="invoice-page">
+      <h1 data-testid="invoice-title">청구서 관리</h1>
 
-      <form onSubmit={handleGenerate} className="form-card">
+      <form onSubmit={handleGenerate} className="form-card" data-testid="invoice-form">
         <select
+          data-testid="invoice-subscription"
           value={selectedSubscription}
           onChange={(e) => setSelectedSubscription(e.target.value)}
           required
         >
           <option value="">구독 선택</option>
-          {subscriptions.filter(s => s.status === 'ACTIVE').map(sub => (
-            <option key={sub.id} value={sub.id}>
-              {getTenantName(sub.tenant?.id)} - {sub.plan?.name}
-            </option>
-          ))}
+          {subscriptions
+            .filter((s) => s.status === 'ACTIVE')
+            .map((sub) => (
+              <option key={sub.id} value={sub.id}>
+                {getTenantName(sub.tenant?.id)} - {sub.plan?.name}
+              </option>
+            ))}
         </select>
-        <button type="submit">청구서 생성</button>
+
+        <button data-testid="invoice-generate" type="submit">
+          청구서 생성
+        </button>
       </form>
 
-      <table className="data-table">
+      <table className="data-table" data-testid="invoice-table">
         <thead>
           <tr>
             <th>청구서 번호</th>
@@ -76,18 +82,31 @@ function Invoices() {
           </tr>
         </thead>
         <tbody>
-          {invoices.map(inv => (
-            <tr key={inv.id}>
+          {invoices.map((inv) => (
+            <tr key={inv.id} data-testid={`invoice-row-${inv.id}`}>
               <td>{inv.invoiceNumber}</td>
               <td>{getTenantName(inv.tenant?.id)}</td>
               <td>₩{parseFloat(inv.amount).toLocaleString()}</td>
-              <td><span className={`status ${inv.status.toLowerCase()}`}>{inv.status}</span></td>
+              <td>
+                <span
+                  data-testid={`invoice-status-${inv.id}`}
+                  className={`status ${inv.status.toLowerCase()}`}
+                >
+                  {inv.status}
+                </span>
+              </td>
               <td>{new Date(inv.issueDate).toLocaleDateString()}</td>
               <td>{new Date(inv.dueDate).toLocaleDateString()}</td>
               <td>{inv.paidAt ? new Date(inv.paidAt).toLocaleDateString() : '-'}</td>
               <td>
                 {inv.status === 'PENDING' && (
-                  <button onClick={() => handlePay(inv.id)} className="pay">결제완료</button>
+                  <button
+                    data-testid={`invoice-pay-${inv.id}`}
+                    onClick={() => handlePay(inv.id)}
+                    className="pay"
+                  >
+                    결제완료
+                  </button>
                 )}
               </td>
             </tr>

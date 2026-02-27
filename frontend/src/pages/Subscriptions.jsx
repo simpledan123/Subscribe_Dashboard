@@ -39,51 +39,63 @@ function Subscriptions() {
   }
 
   const getTenantName = (id) => {
-    const tenant = tenants.find(t => t.id === id)
+    const tenant = tenants.find((t) => t.id === id)
     return tenant ? tenant.companyName : '-'
   }
 
   const getPlanName = (id) => {
-    const plan = plans.find(p => p.id === id)
+    const plan = plans.find((p) => p.id === id)
     return plan ? plan.name : '-'
   }
 
   return (
-    <div>
-      <h1>구독 관리</h1>
+    <div data-testid="sub-page">
+      <h1 data-testid="sub-title">구독 관리</h1>
 
-      <form onSubmit={handleSubmit} className="form-card">
+      <form onSubmit={handleSubmit} className="form-card" data-testid="sub-form">
         <select
+          data-testid="sub-tenant"
           value={form.tenantId}
-          onChange={(e) => setForm({...form, tenantId: e.target.value})}
+          onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
           required
         >
           <option value="">고객사 선택</option>
-          {tenants.map(t => (
-            <option key={t.id} value={t.id}>{t.companyName}</option>
+          {tenants.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.companyName}
+            </option>
           ))}
         </select>
+
         <select
+          data-testid="sub-plan"
           value={form.planId}
-          onChange={(e) => setForm({...form, planId: e.target.value})}
+          onChange={(e) => setForm({ ...form, planId: e.target.value })}
           required
         >
           <option value="">플랜 선택</option>
-          {plans.map(p => (
-            <option key={p.id} value={p.id}>{p.name}</option>
+          {plans.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
           ))}
         </select>
+
         <select
+          data-testid="sub-billingCycle"
           value={form.billingCycle}
-          onChange={(e) => setForm({...form, billingCycle: e.target.value})}
+          onChange={(e) => setForm({ ...form, billingCycle: e.target.value })}
         >
           <option value="MONTHLY">월간</option>
           <option value="YEARLY">연간</option>
         </select>
-        <button type="submit">구독 생성</button>
+
+        <button data-testid="sub-create" type="submit">
+          구독 생성
+        </button>
       </form>
 
-      <table className="data-table">
+      <table className="data-table" data-testid="sub-table">
         <thead>
           <tr>
             <th>ID</th>
@@ -97,18 +109,31 @@ function Subscriptions() {
           </tr>
         </thead>
         <tbody>
-          {subscriptions.map(sub => (
-            <tr key={sub.id}>
+          {subscriptions.map((sub) => (
+            <tr key={sub.id} data-testid={`sub-row-${sub.id}`}>
               <td>{sub.id}</td>
               <td>{getTenantName(sub.tenant?.id)}</td>
               <td>{getPlanName(sub.plan?.id)}</td>
               <td>{sub.billingCycle === 'MONTHLY' ? '월간' : '연간'}</td>
-              <td><span className={`status ${sub.status.toLowerCase()}`}>{sub.status}</span></td>
+              <td>
+                <span
+                  data-testid={`sub-status-${sub.id}`}
+                  className={`status ${sub.status.toLowerCase()}`}
+                >
+                  {sub.status}
+                </span>
+              </td>
               <td>{new Date(sub.startDate).toLocaleDateString()}</td>
               <td>{sub.nextBillingDate ? new Date(sub.nextBillingDate).toLocaleDateString() : '-'}</td>
               <td>
                 {sub.status === 'ACTIVE' && (
-                  <button onClick={() => handleCancel(sub.id)} className="delete">취소</button>
+                  <button
+                    data-testid={`sub-cancel-${sub.id}`}
+                    onClick={() => handleCancel(sub.id)}
+                    className="delete"
+                  >
+                    취소
+                  </button>
                 )}
               </td>
             </tr>
