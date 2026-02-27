@@ -1,0 +1,116 @@
+name: QA (pytest + playwright)
+
+on:
+  pull_request:
+  push:
+    branches: ["main"]
+
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: saas_subscription
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: 1234
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d saas_subscription"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # build.gradle이 Java toolchain 25라서 25로 맞춰주는 게 안전함
+      - name: Setup Java 25
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Start backend (Spring Boot)
+        env:
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/saas_subscription
+          SPRING_DATASOURCE_USERNAME: postgres
+          SPRING_DATASOURCE_PASSWORD: 1234
+        run: |
+          set -euo pipefail
+          chmod +x ./gradlew
+          nohup ./gradlew bootRun > backend.log 2>&1 &
+
+          echo "Waiting for backend..."
+          for i in {1..150}; do
+            if curl -sSf http://localhost:8080/api/tenants > /dev/null; then
+              echo "Backend is up!"
+              break
+            fi
+            sleep 2
+          done
+
+          # 마지막으로 한 번 더 강제 체크 (안 뜨면 여기서 실패)
+          curl -sSf http://localhost:8080/api/tenants > /dev/null
+
+      # CORS가 http://localhost:5173만 허용이라 preview도 5173으로 고정
+      - name: Build & start frontend (Vite preview on :5173)
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm install
+          npm run build
+          nohup npm run preview -- --host 127.0.0.1 --port 5173 > ../frontend.log 2>&1 &
+          cd ..
+
+          echo "Waiting for frontend..."
+          for i in {1..150}; do
+            if curl -sSf http://localhost:5173/ > /dev/null; then
+              echo "Frontend is up!"
+              break
+            fi
+            sleep 2
+          done
+
+          curl -sSf http://localhost:5173/ > /dev/null
+
+      - name: Install QA deps + Playwright
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install -r qa/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Run pytest (E2E) + HTML report
+        env:
+          UI_BASE_URL: http://localhost:5173
+          API_BASE_URL: http://localhost:8080/api
+          QA_WAIT_TIMEOUT_SEC: 120
+        run: |
+          set -euo pipefail
+          mkdir -p qa/test-results
+          pytest -m e2e --html=qa/test-results/report.html --self-contained-html
+
+      - name: Upload artifacts (report, screenshots, logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: qa-artifacts
+          path: |
+            qa/test-results
+            backend.log
+            frontend.log
