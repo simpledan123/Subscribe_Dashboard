@@ -96,14 +96,15 @@ jobs:
           python -m playwright install --with-deps chromium
 
       - name: Run pytest (E2E) + HTML report
+        working-directory: qa
         env:
           UI_BASE_URL: http://localhost:5173
           API_BASE_URL: http://localhost:8080/api
           QA_WAIT_TIMEOUT_SEC: 120
         run: |
           set -euo pipefail
-          mkdir -p qa/test-results
-          pytest -m e2e --html=qa/test-results/report.html --self-contained-html
+          mkdir -p test-results
+          pytest -m e2e --html=test-results/report.html --self-contained-html
 
       - name: Upload artifacts (report, screenshots, logs)
         if: always()

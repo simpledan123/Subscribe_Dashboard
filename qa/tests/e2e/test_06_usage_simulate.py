@@ -54,5 +54,15 @@ def test_usage_simulate_api_call(logged_in_page, http, api_base_url):
 
     page.get_by_test_id(f"usage-simulate-{tenant_id}").click()
 
-    # 호출 수가 증가할 때까지 기다림
-    expect.poll(lambda: _parse_current_calls(calls_span.inner_text())).to_be_greater_than(before)
+    import time
+
+# 호출 수가 증가할 때까지 직접 폴링(최대 10초)
+deadline = time.time() + 10
+now = before
+while time.time() < deadline:
+    now = _parse_current_calls(calls_span.inner_text())
+    if now > before:
+        break
+    time.sleep(0.5)
+
+assert now > before, f"API calls did not increase (before={before}, after={now})"
