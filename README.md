@@ -105,6 +105,24 @@ pip install -r requirements.txt
 python -m playwright install chromium
 pytest -m e2e --html=test-results/report.html --self-contained-html
 
+## AWS RDS (PostgreSQL) 실습/운영 경험
+
+구독 관리 서비스의 운영 환경을 가정하고 AWS RDS(PostgreSQL)로 DB 인스턴스를 구성했습니다.
+로컬(PostgreSQL)과 동일한 스키마/쿼리를 클라우드 환경에서도 재현할 수 있도록 연결/운영 포인트를 정리했습니다.
+
+### 1) 인스턴스 구축 및 연결
+- RDS PostgreSQL 인스턴스 생성 및 엔드포인트 기반 연결 구성
+- 보안 그룹 인바운드 규칙을 최소화하여 접근 제어(허용 IP/포트 제한)
+- SSL 연결 옵션을 적용하여 안전한 접속 설정(verify-full 방식)
+
+### 2) 백업/복구 시나리오 정리
+- 스냅샷(수동 백업) 기반 복구 절차를 정리하여 장애/실수 상황에 대한 대응 흐름을 마련
+- 복구 시 신규 인스턴스 생성 → 애플리케이션 재연결 순으로 복구 전략을 구성
+
+### 3) 운영 관점 점검(모니터링/장애 포인트)
+- 커넥션 수, CPU, 스토리지 등 주요 지표를 기준으로 상태를 점검할 수 있도록 체크 항목을 정리
+- 장애 상황에서 우선 확인할 항목(커넥션 폭증, Lock 대기, Slow query)을 기준으로 대응 순서를 정리
+
 ## API 명세
 
 ### 인증
