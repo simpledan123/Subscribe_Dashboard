@@ -1,5 +1,8 @@
 package com.saas.subscriptionplatform.config;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -29,21 +32,35 @@ public class RedisConfig {
     /**
      * CacheManager 설정.
      *
+     * LocalDateTime 직렬화 문제 해결:
+     *   GenericJackson2JsonRedisSerializer 기본 ObjectMapper는 JavaTimeModule이 없어서
+     *   LocalDateTime을 직렬화할 때 예외가 발생함.
+     *   JavaTimeModule을 등록한 ObjectMapper를 명시적으로 주입해 해결.
+     *
      * 캐시별 TTL 전략:
      *   - plans: 1시간 (플랜 정보는 자주 바뀌지 않음)
      *   - tenants: 10분 (고객사 상태 변경 가능성 고려)
-     *
-     * 기본 TTL은 30분으로 설정.
      */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        objectMapper.activateDefaultTyping(
+                objectMapper.getPolymorphicTypeValidator(),
+                ObjectMapper.DefaultTyping.NON_FINAL
+        );
+
+        GenericJackson2JsonRedisSerializer serializer =
+                new GenericJackson2JsonRedisSerializer(objectMapper);
+
         RedisCacheConfiguration defaultConfig = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(30))
                 .serializeKeysWith(
                         RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer())
                 )
                 .serializeValuesWith(
-                        RedisSerializationContext.SerializationPair.fromSerializer(new GenericJackson2JsonRedisSerializer())
+                        RedisSerializationContext.SerializationPair.fromSerializer(serializer)
                 )
                 .disableCachingNullValues();
 
