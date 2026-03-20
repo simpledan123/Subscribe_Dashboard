@@ -136,9 +136,11 @@ jobs:
           API_BASE_URL: http://localhost:8080/api
           QA_WAIT_TIMEOUT_SEC: 120
         run: |
-          set -euo pipefail
           mkdir -p test-results
-          pytest -m e2e --html=test-results/report.html --self-contained-html
+          pytest -m e2e --html=test-results/report.html --self-contained-html; \
+          echo "===== BACKEND LOG (last 50 lines) ====="; \
+          tail -50 ../backend.log; \
+          exit ${PIPESTATUS[0]}
 
       - name: Upload artifacts (report, screenshots, logs)
         if: always()
