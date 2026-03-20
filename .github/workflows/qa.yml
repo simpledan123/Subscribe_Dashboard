@@ -141,7 +141,7 @@ jobs:
           
       - name: Print backend log
         if: always()
-        run: cat backend.log | tail -80
+        run: grep -E "ERROR|Exception|Caused by" backend.log | tail -30
 
       - name: Upload artifacts (report, screenshots, logs)
         if: always()
