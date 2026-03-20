@@ -96,7 +96,11 @@ jobs:
             sleep 2
           done
 
-          curl -sSf http://localhost:8080/api/tenants > /dev/null
+          if ! curl -sSf http://localhost:8080/api/tenants > /dev/null; then
+            echo "===== BACKEND LOG ====="
+            cat backend.log
+            exit 1
+          fi
 
       - name: Build & start frontend (Vite preview on :5173)
         run: |
