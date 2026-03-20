@@ -1,6 +1,6 @@
 # SaaS 구독 관리 플랫폼
 
-B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설정, 사용량 트래킹, 청구서 발행 등 핵심 기능을 제공합니다.
+SaaS 구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설정, 사용량 트래킹, 청구서 발행 등 핵심 기능을 제공합니다.
 
 ## 주요 기능
 
@@ -23,14 +23,16 @@ B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설�
 - 구독 생성 및 취소
 - 플랜 변경 (업그레이드/다운그레이드)
 - 결제 주기 관리 (월간/연간)
+- 구독 이벤트 기반 비동기 처리 (Kafka)
 
 ### 사용량 관리
 - 고객사별 API 호출 횟수 트래킹
+- Redis INCR 기반 원자적 카운팅 (동시 요청 race condition 방지)
 - 플랜 한도 초과 시 차단 (429 에러)
 - 사용량 현황 시각화 (프로그레스 바)
 
 ### 청구서 관리
-- 청구서 자동 생성
+- 매월 1일 자동 청구서 생성 (Spring Scheduler)
 - 결제 상태 관리 (PENDING, PAID, OVERDUE)
 - 결제 완료 처리
 
@@ -42,7 +44,11 @@ B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설�
 - Spring Boot 4.0.1
 - Spring Security + JWT
 - Spring Data JPA
+- Spring Data Redis
+- Spring Kafka
 - PostgreSQL
+- Redis
+- Kafka
 - Swagger UI
 
 ### Frontend
@@ -53,12 +59,54 @@ B2B SaaS  구독 관리 시스템입니다. 고객사 관리, 구독 플랜 설�
 - Recharts
 
 
+## 주요 기술적 개선 사항
+
+### 1. Redis Atomic Counter (race condition 해결)
+API 호출 한도 체크 시 `checkApiLimit()`과 `recordApiCall()`이 별도 트랜잭션으로 분리되어
+동시 요청이 몰릴 경우 한도 초과 케이스가 중복 통과되는 문제가 있었습니다.
+Redis INCR 단일 원자적 연산으로 전환해 동시 요청 100건 기준 한도 정확도 100%를 보장합니다.
+
+### 2. Redis Cache (반복 DB 조회 개선)
+API 호출 한도 체크 시 매 요청마다 Plan과 Tenant를 DB에서 반복 조회하는 문제를 확인했습니다.
+변경 빈도가 낮은 Plan은 TTL 1시간, 상태 변경이 발생할 수 있는 Tenant는 TTL 10분으로 차등 설정해
+Redis 캐시를 적용했습니다. 수정/삭제 시 `@CacheEvict`로 즉시 무효화해 데이터 정합성을 유지합니다.
+
+### 3. Kafka 이벤트 파이프라인 (도메인 책임 분리)
+구독 생성 시 청구서 생성을 동기 처리하던 구조에서, 청구서 생성 실패가 구독 생성 전체를
+롤백시키는 문제가 있었습니다. Kafka 이벤트 파이프라인으로 분리해 두 도메인의 트랜잭션을
+독립시켰으며, 파티션 키로 tenantId를 사용해 동일 테넌트 이벤트의 순서를 보장합니다.
+
+### 4. Spring Scheduler 기반 월별 청구서 자동화
+매월 수동으로 청구서를 생성하던 방식에서, Spring Scheduler를 활용해 매월 1일 자정에
+전체 활성 구독에 대한 청구서를 자동 발행하도록 개선했습니다. 개별 구독의 청구서 생성 실패가
+전체 처리를 중단시키지 않도록 예외를 건별로 격리해 안정성을 확보했습니다.
+
+
 ## 실행 방법
 
 ### 사전 요구사항
 - Java 17 이상
 - Node.js 18 이상
 - PostgreSQL
+- Redis
+- Kafka
+
+### 인프라 실행 (Docker)
+```bash
+# Redis
+docker run -d -p 6379:6379 --name redis redis
+
+# Kafka
+docker run -d --name kafka \
+  -p 9092:9092 \
+  -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
+  -e KAFKA_CFG_NODE_ID=1 \
+  -e KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093 \
+  -e KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9092 \
+  -e KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@localhost:9093 \
+  -e KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER \
+  apache/kafka:3.7.0
+```
 
 ### 데이터베이스 설정
 ```sql
@@ -89,6 +137,7 @@ npm run dev
 [![QA (pytest + playwright)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml/badge.svg)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml)
 
 ### Run locally
+```bash
 # Terminal 1 (backend)
 ./gradlew bootRun
 
@@ -104,6 +153,7 @@ source .venv/bin/activate  # Windows: .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 python -m playwright install chromium
 pytest -m e2e --html=test-results/report.html --self-contained-html
+```
 
 ## AWS RDS (PostgreSQL) 실습/운영 경험
 
@@ -169,4 +219,3 @@ pytest -m e2e --html=test-results/report.html --self-contained-html
 | GET | /api/invoices | 전체 조회 |
 | POST | /api/invoices | 생성 |
 | PUT | /api/invoices/{id}/pay | 결제 완료 |
-
