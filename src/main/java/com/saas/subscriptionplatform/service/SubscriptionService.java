@@ -6,71 +6,131 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.saas.subscriptionplatform.config.KafkaConfig;
 import com.saas.subscriptionplatform.entity.Plan;
 import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.entity.Tenant;
+import com.saas.subscriptionplatform.event.SubscriptionEvent;
+import com.saas.subscriptionplatform.event.SubscriptionEventProducer;
 import com.saas.subscriptionplatform.repository.SubscriptionRepository;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
 public class SubscriptionService {
-    
+
     private final SubscriptionRepository subscriptionRepository;
     private final TenantService tenantService;
     private final PlanService planService;
-    
+    private final SubscriptionEventProducer eventProducer;
+
     public List<Subscription> findAll() {
         return subscriptionRepository.findAll();
     }
-    
+
     public Subscription findById(Long id) {
         return subscriptionRepository.findById(id)
-            .orElseThrow(() -> new RuntimeException("Subscription not found"));
+                .orElseThrow(() -> new RuntimeException("Subscription not found"));
     }
-    
+
     public List<Subscription> findByTenant(Long tenantId) {
         Tenant tenant = tenantService.findById(tenantId);
         return subscriptionRepository.findByTenant(tenant);
     }
-    
+
+    /**
+     * 구독 생성 후 Kafka 이벤트 발행.
+     *
+     * 기존 방식:
+     *   구독 생성 → 청구서 생성을 동기적으로 처리.
+     *   청구서 생성 실패 시 구독 생성 전체가 롤백되는 문제가 있었음.
+     *
+     * 개선:
+     *   구독 저장 완료 후 Kafka 이벤트만 발행하고 즉시 응답.
+     *   청구서 생성은 Consumer가 비동기로 처리해 두 도메인의 책임을 분리함.
+     */
     @Transactional
     public Subscription create(Long tenantId, Long planId, String billingCycle) {
         Tenant tenant = tenantService.findById(tenantId);
         Plan plan = planService.findById(planId);
-        
+
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime nextBilling = billingCycle.equals("MONTHLY") 
-            ? now.plusMonths(1) 
-            : now.plusYears(1);
-        
+        LocalDateTime nextBilling = billingCycle.equals("MONTHLY")
+                ? now.plusMonths(1)
+                : now.plusYears(1);
+
         Subscription subscription = Subscription.builder()
-            .tenant(tenant)
-            .plan(plan)
-            .billingCycle(billingCycle)
-            .status("ACTIVE")
-            .startDate(now)
-            .nextBillingDate(nextBilling)
-            .build();
-        
-        return subscriptionRepository.save(subscription);
+                .tenant(tenant)
+                .plan(plan)
+                .billingCycle(billingCycle)
+                .status("ACTIVE")
+                .startDate(now)
+                .nextBillingDate(nextBilling)
+                .build();
+
+        Subscription saved = subscriptionRepository.save(subscription);
+
+        // 트랜잭션 커밋 후 이벤트 발행 (Consumer가 DB에서 구독을 조회할 수 있도록)
+        SubscriptionEvent event = SubscriptionEvent.builder()
+                .eventType(SubscriptionEvent.EventType.CREATED)
+                .subscriptionId(saved.getId())
+                .tenantId(tenantId)
+                .planId(planId)
+                .billingCycle(billingCycle)
+                .occurredAt(now)
+                .build();
+
+        eventProducer.publishCreated(event);
+        log.info("구독 생성 이벤트 발행 - subscriptionId: {}", saved.getId());
+
+        return saved;
     }
-    
+
     @Transactional
     public Subscription changePlan(Long subscriptionId, Long newPlanId) {
         Subscription subscription = findById(subscriptionId);
         Plan newPlan = planService.findById(newPlanId);
         subscription.setPlan(newPlan);
-        return subscriptionRepository.save(subscription);
+        Subscription saved = subscriptionRepository.save(subscription);
+
+        SubscriptionEvent event = SubscriptionEvent.builder()
+                .eventType(SubscriptionEvent.EventType.PLAN_CHANGED)
+                .subscriptionId(saved.getId())
+                .tenantId(saved.getTenant().getId())
+                .planId(newPlanId)
+                .billingCycle(saved.getBillingCycle())
+                .occurredAt(LocalDateTime.now())
+                .build();
+
+        eventProducer.publishPlanChanged(event);
+        log.info("플랜 변경 이벤트 발행 - subscriptionId: {}, 새 planId: {}", saved.getId(), newPlanId);
+
+        return saved;
     }
-    
+
     @Transactional
     public Subscription cancel(Long id) {
         Subscription subscription = findById(id);
         subscription.setStatus("CANCELLED");
         subscription.setCancelledAt(LocalDateTime.now());
-        return subscriptionRepository.save(subscription);
+        Subscription saved = subscriptionRepository.save(subscription);
+
+        SubscriptionEvent event = SubscriptionEvent.builder()
+                .eventType(SubscriptionEvent.EventType.CANCELLED)
+                .subscriptionId(saved.getId())
+                .tenantId(saved.getTenant().getId())
+                .planId(saved.getPlan().getId())
+                .billingCycle(saved.getBillingCycle())
+                .occurredAt(LocalDateTime.now())
+                .build();
+
+        eventProducer.publishCancelled(event);
+        log.info("구독 취소 이벤트 발행 - subscriptionId: {}", saved.getId());
+
+        return saved;
     }
 }
