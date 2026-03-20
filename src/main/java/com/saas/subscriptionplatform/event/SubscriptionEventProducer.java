@@ -1,13 +1,15 @@
 package com.saas.subscriptionplatform.event;
 
-import com.saas.subscriptionplatform.config.KafkaConfig;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import java.util.concurrent.CompletableFuture;
+
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.kafka.support.SendResult;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.CompletableFuture;
+import com.saas.subscriptionplatform.config.KafkaConfig;
+
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
@@ -25,19 +27,25 @@ public class SubscriptionEventProducer {
     public void publish(String topic, SubscriptionEvent event) {
         String partitionKey = String.valueOf(event.getTenantId());
 
-        CompletableFuture<SendResult<String, SubscriptionEvent>> future =
-                kafkaTemplate.send(topic, partitionKey, event);
+        try {
+            CompletableFuture<SendResult<String, SubscriptionEvent>> future =
+                    kafkaTemplate.send(topic, partitionKey, event);
 
-        future.whenComplete((result, ex) -> {
-            if (ex == null) {
-                log.info("이벤트 발행 성공 - topic: {}, tenantId: {}, offset: {}",
-                        topic, event.getTenantId(),
-                        result.getRecordMetadata().offset());
-            } else {
-                log.error("이벤트 발행 실패 - topic: {}, tenantId: {}, error: {}",
-                        topic, event.getTenantId(), ex.getMessage());
-            }
-        });
+            future.whenComplete((result, ex) -> {
+                if (ex == null) {
+                    log.info("이벤트 발행 성공 - topic: {}, tenantId: {}, offset: {}",
+                            topic, event.getTenantId(),
+                            result.getRecordMetadata().offset());
+                } else {
+                    log.error("이벤트 발행 실패 - topic: {}, tenantId: {}, error: {}",
+                            topic, event.getTenantId(), ex.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            // Kafka 이벤트 발행 실패가 구독 생성 API 응답에 영향을 주지 않도록 격리
+            log.error("이벤트 발행 중 예외 발생 - topic: {}, tenantId: {}, error: {}",
+                    topic, event.getTenantId(), e.getMessage());
+        }
     }
 
     public void publishCreated(SubscriptionEvent event) {
