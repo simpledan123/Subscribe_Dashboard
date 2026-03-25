@@ -32,6 +32,8 @@ function App() {
     return <Login onLogin={handleLogin} />
   }
 
+  
+
   return (
     <Router>
       <div className="app">
@@ -91,6 +93,26 @@ function App() {
       </div>
     </Router>
   )
+}
+
+useEffect(() => {
+  const token = localStorage.getItem('token')
+  if (token) {
+    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+    setIsLoggedIn(true)
+  }
+}, [])
+
+const handleLogin = () => {
+  const token = localStorage.getItem('token')
+  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
+  setIsLoggedIn(true)
+}
+
+const handleLogout = () => {
+  localStorage.removeItem('token')
+  delete axios.defaults.headers.common['Authorization']
+  setIsLoggedIn(false)
 }
 
 export default App

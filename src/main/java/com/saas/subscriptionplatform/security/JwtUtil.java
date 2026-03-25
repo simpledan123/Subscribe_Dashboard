@@ -1,19 +1,27 @@
 package com.saas.subscriptionplatform.security;
 
-import io.jsonwebtoken.*;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.stereotype.Component;
-import javax.crypto.SecretKey;
 import java.util.Date;
+
+import javax.crypto.SecretKey;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtil {
-    
-    private final SecretKey key = Keys.hmacShaKeyFor(
-        "mySecretKeyForJwtTokenMustBe32BytesLong!".getBytes()
-    );
-    private final long EXPIRATION = 86400000; // 24시간
-    
+
+    private final SecretKey key;
+    private final long EXPIRATION = 86400000;
+
+    public JwtUtil(@Value("${jwt.secret}") String secret) {
+        this.key = Keys.hmacShaKeyFor(secret.getBytes());
+    }
+
     public String generateToken(String username) {
         return Jwts.builder()
             .subject(username)
@@ -22,7 +30,7 @@ public class JwtUtil {
             .signWith(key)
             .compact();
     }
-    
+
     public String validateTokenAndGetUsername(String token) {
         try {
             Claims claims = Jwts.parser()
