@@ -4,11 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.saas.subscriptionplatform.entity.Plan;
 import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.entity.Tenant;
 import com.saas.subscriptionplatform.entity.Usage;
@@ -111,6 +111,8 @@ public class UsageService {
         return usageRepository.save(usage);
     }
 
+// 기존 getMaxApiCalls() 교체
+    @Cacheable(value = "planLimits", key = "#tenantId")
     private int getMaxApiCalls(Long tenantId) {
         Tenant tenant = tenantService.findById(tenantId);
         return subscriptionRepository.findByTenant(tenant).stream()

@@ -3,10 +3,10 @@ package com.saas.subscriptionplatform.service;
 import java.time.LocalDateTime;
 import java.util.List;
 
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.saas.subscriptionplatform.config.KafkaConfig;
 import com.saas.subscriptionplatform.entity.Plan;
 import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.entity.Tenant;
@@ -27,6 +27,7 @@ public class SubscriptionService {
     private final TenantService tenantService;
     private final PlanService planService;
     private final SubscriptionEventProducer eventProducer;
+    private final CacheManager cacheManager;
 
     public List<Subscription> findAll() {
         return subscriptionRepository.findAll();
@@ -42,17 +43,6 @@ public class SubscriptionService {
         return subscriptionRepository.findByTenant(tenant);
     }
 
-    /**
-     * 구독 생성 후 Kafka 이벤트 발행.
-     *
-     * 기존 방식:
-     *   구독 생성 → 청구서 생성을 동기적으로 처리.
-     *   청구서 생성 실패 시 구독 생성 전체가 롤백되는 문제가 있었음.
-     *
-     * 개선:
-     *   구독 저장 완료 후 Kafka 이벤트만 발행하고 즉시 응답.
-     *   청구서 생성은 Consumer가 비동기로 처리해 두 도메인의 책임을 분리함.
-     */
     @Transactional
     public Subscription create(Long tenantId, Long planId, String billingCycle) {
         Tenant tenant = tenantService.findById(tenantId);
@@ -74,7 +64,6 @@ public class SubscriptionService {
 
         Subscription saved = subscriptionRepository.save(subscription);
 
-        // 트랜잭션 커밋 후 이벤트 발행 (Consumer가 DB에서 구독을 조회할 수 있도록)
         SubscriptionEvent event = SubscriptionEvent.builder()
                 .eventType(SubscriptionEvent.EventType.CREATED)
                 .subscriptionId(saved.getId())
@@ -97,6 +86,12 @@ public class SubscriptionService {
         subscription.setPlan(newPlan);
         Subscription saved = subscriptionRepository.save(subscription);
 
+        // planLimits 캐시 무효화 (tenantId 기준)
+        var cache = cacheManager.getCache("planLimits");
+        if (cache != null) {
+            cache.evict(saved.getTenant().getId());
+        }
+
         SubscriptionEvent event = SubscriptionEvent.builder()
                 .eventType(SubscriptionEvent.EventType.PLAN_CHANGED)
                 .subscriptionId(saved.getId())
@@ -118,6 +113,12 @@ public class SubscriptionService {
         subscription.setStatus("CANCELLED");
         subscription.setCancelledAt(LocalDateTime.now());
         Subscription saved = subscriptionRepository.save(subscription);
+
+        // planLimits 캐시 무효화 (tenantId 기준)
+        var cache = cacheManager.getCache("planLimits");
+        if (cache != null) {
+            cache.evict(saved.getTenant().getId());
+        }
 
         SubscriptionEvent event = SubscriptionEvent.builder()
                 .eventType(SubscriptionEvent.EventType.CANCELLED)

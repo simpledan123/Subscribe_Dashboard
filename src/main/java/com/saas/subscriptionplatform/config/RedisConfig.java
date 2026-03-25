@@ -66,7 +66,8 @@ public class RedisConfig {
 
         Map<String, RedisCacheConfiguration> cacheConfigs = Map.of(
                 "plans",   defaultConfig.entryTtl(Duration.ofHours(1)),
-                "tenants", defaultConfig.entryTtl(Duration.ofMinutes(10))
+                "tenants", defaultConfig.entryTtl(Duration.ofMinutes(10)),
+                "planLimits", defaultConfig.entryTtl(Duration.ofMinutes(10))
         );
 
         return RedisCacheManager.builder(connectionFactory)
