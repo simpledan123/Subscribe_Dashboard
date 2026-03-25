@@ -12,9 +12,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.entity.Tenant;
 import com.saas.subscriptionplatform.entity.Usage;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
 import com.saas.subscriptionplatform.repository.SubscriptionRepository;
 import com.saas.subscriptionplatform.repository.UsageRepository;
-import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,7 +30,6 @@ public class UsageService {
     private final SubscriptionRepository subscriptionRepository;
     private final RedisTemplate<String, String> redisTemplate;
 
-    // Redis 키: "api_calls:{tenantId}:{yyyy}:{MM}"
     private String redisKey(Long tenantId, int year, int month) {
         return String.format("api_calls:%d:%d:%02d", tenantId, year, month);
     }
@@ -51,52 +50,80 @@ public class UsageService {
     }
 
     /**
-     * Redis INCR을 사용한 원자적 API 호출 카운트 증가 및 한도 체크.
+     * Redis INCR 원자적 카운터로 race condition 해결.
      *
-     * 기존 방식의 문제:
-     *   checkApiLimit() → recordApiCall() 이 두 트랜잭션 사이에서
-     *   동시 요청이 몰릴 경우 한도 초과 케이스가 중복 통과되는 race condition이 발생했음.
+     * 기존 방식:
+     *   checkApiLimit() → recordApiCall() 두 트랜잭션 사이에서
+     *   동시 요청이 몰릴 경우 한도 초과 케이스가 중복 통과되는 문제가 있었음.
      *
      * 개선:
-     *   Redis INCR은 단일 원자적 연산이므로 동시 요청이 몰려도
-     *   카운터가 정확하게 1씩만 증가하고, 초과 즉시 차단이 보장됨.
+     *   Redis INCR 단일 원자적 연산으로 카운터 증가와 한도 체크를 분리 불가능한
+     *   단일 단계로 처리. 한도 초과 시 즉시 카운터 원복 후 429 반환.
+     *
+     * Redis-DB 정합성 전략:
+     *   Redis → 실시간 rate limiting 전용 (빠른 카운팅)
+     *   DB    → 청구 계산 및 영속성 보장용
+     *   두 저장소가 일시적으로 다를 수 있으나 청구에는 DB 값만 사용하므로
+     *   비즈니스 정합성은 유지됨. Redis 장애 시 DB fallback 처리.
      */
     @Transactional
     public Usage recordApiCallWithCheck(Long tenantId) {
         LocalDateTime now = LocalDateTime.now();
         String key = redisKey(tenantId, now.getYear(), now.getMonthValue());
 
-        // 활성 구독의 플랜 한도 조회
         int maxApiCalls = getMaxApiCalls(tenantId);
 
-        // INCR: 원자적으로 증가 후 현재 값 반환
-        Long currentCount = redisTemplate.opsForValue().increment(key);
-
-        // 처음 생성된 키는 만료 시간 설정 (다음 달 1일까지 유지)
-        if (currentCount != null && currentCount == 1L) {
-            redisTemplate.expire(key, 35, TimeUnit.DAYS);
+        Long currentCount;
+        try {
+            currentCount = redisTemplate.opsForValue().increment(key);
+            if (currentCount != null && currentCount == 1L) {
+                redisTemplate.expire(key, 35, TimeUnit.DAYS);
+            }
+        } catch (Exception e) {
+            // Redis 장애 시 DB fallback
+            log.warn("Redis 장애 감지 - DB fallback 처리. tenantId: {}, error: {}",
+                    tenantId, e.getMessage());
+            return recordApiCallFallback(tenantId, now, maxApiCalls);
         }
 
-        // 한도 초과 시 즉시 차단
         if (currentCount != null && currentCount > maxApiCalls) {
-            // 증가시켰던 카운터 원복
             redisTemplate.opsForValue().decrement(key);
             log.warn("API 호출 한도 초과 - tenantId: {}, count: {}, max: {}",
                     tenantId, currentCount - 1, maxApiCalls);
-            throw new RuntimeException("API 호출 한도를 초과했습니다.");
+            throw new ApiLimitExceededException("API 호출 한도를 초과했습니다.");
         }
 
-        // DB Usage 테이블 동기화 (캐시와 DB 정합성 유지)
         return syncUsageToDB(tenantId, now, currentCount != null ? currentCount.intValue() : 0);
     }
 
     /**
-     * DB Usage 레코드와 Redis 카운터를 동기화.
-     * DB는 영속성 보장 및 청구 계산용, Redis는 실시간 카운팅용으로 역할을 분리.
+     * Redis 장애 시 DB만으로 한도 체크 및 카운팅.
+     * 동시성 보장은 약해지지만 서비스 중단보다 낫다고 판단.
      */
+    @Transactional
+    private Usage recordApiCallFallback(Long tenantId, LocalDateTime now, int maxApiCalls) {
+        Tenant tenant = tenantService.findById(tenantId);
+        Usage usage = usageRepository
+                .findByTenantAndBillingYearAndBillingMonth(tenant, now.getYear(), now.getMonthValue())
+                .orElseGet(() -> Usage.builder()
+                        .tenant(tenant)
+                        .billingYear(now.getYear())
+                        .billingMonth(now.getMonthValue())
+                        .apiCalls(0)
+                        .storageUsed(0)
+                        .activeUsers(0)
+                        .build());
+
+        if (usage.getApiCalls() >= maxApiCalls) {
+            throw new ApiLimitExceededException("API 호출 한도를 초과했습니다.");
+        }
+
+        usage.setApiCalls(usage.getApiCalls() + 1);
+        return usageRepository.save(usage);
+    }
+
     private Usage syncUsageToDB(Long tenantId, LocalDateTime now, int redisCount) {
         Tenant tenant = tenantService.findById(tenantId);
-
         Usage usage = usageRepository
                 .findByTenantAndBillingYearAndBillingMonth(tenant, now.getYear(), now.getMonthValue())
                 .orElseGet(() -> Usage.builder()
@@ -112,9 +139,8 @@ public class UsageService {
         return usageRepository.save(usage);
     }
 
-// 기존 getMaxApiCalls() 교체
     @Cacheable(value = "planLimits", key = "#tenantId")
-    private int getMaxApiCalls(Long tenantId) {
+    public int getMaxApiCalls(Long tenantId) {
         Tenant tenant = tenantService.findById(tenantId);
         return subscriptionRepository.findByTenant(tenant).stream()
                 .filter(s -> s.getStatus().equals("ACTIVE"))
@@ -124,30 +150,9 @@ public class UsageService {
     }
 
     @Transactional
-    public Usage recordApiCall(Long tenantId) {
-        LocalDateTime now = LocalDateTime.now();
-        Tenant tenant = tenantService.findById(tenantId);
-
-        Usage usage = usageRepository
-                .findByTenantAndBillingYearAndBillingMonth(tenant, now.getYear(), now.getMonthValue())
-                .orElseGet(() -> Usage.builder()
-                        .tenant(tenant)
-                        .billingYear(now.getYear())
-                        .billingMonth(now.getMonthValue())
-                        .apiCalls(0)
-                        .storageUsed(0)
-                        .activeUsers(0)
-                        .build());
-
-        usage.setApiCalls(usage.getApiCalls() + 1);
-        return usageRepository.save(usage);
-    }
-
-    @Transactional
     public Usage updateStorage(Long tenantId, Integer storageUsed) {
         LocalDateTime now = LocalDateTime.now();
         Tenant tenant = tenantService.findById(tenantId);
-
         Usage usage = usageRepository
                 .findByTenantAndBillingYearAndBillingMonth(tenant, now.getYear(), now.getMonthValue())
                 .orElseThrow(() -> new RuntimeException("Usage not found"));
@@ -164,9 +169,6 @@ public class UsageService {
                 .orElse(null);
     }
 
-    /**
-     * 월 초기화 시 Redis 카운터 리셋 (Spring Batch에서 호출 예정).
-     */
     public void resetMonthlyCounter(Long tenantId, int year, int month) {
         String key = redisKey(tenantId, year, month);
         redisTemplate.delete(key);
