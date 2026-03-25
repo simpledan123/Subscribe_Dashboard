@@ -9,6 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.saas.subscriptionplatform.entity.Tenant;
 import com.saas.subscriptionplatform.repository.TenantRepository;
+import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

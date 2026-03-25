@@ -13,6 +13,9 @@ import com.saas.subscriptionplatform.repository.PlanRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
+
 @Slf4j
 @Service
 @RequiredArgsConstructor

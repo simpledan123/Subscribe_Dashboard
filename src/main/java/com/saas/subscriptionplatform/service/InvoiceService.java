@@ -13,6 +13,9 @@ import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.entity.Tenant;
 import com.saas.subscriptionplatform.repository.InvoiceRepository;
 
+import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
+
 import lombok.RequiredArgsConstructor;
 
 @Service

@@ -14,6 +14,7 @@ import com.saas.subscriptionplatform.entity.Tenant;
 import com.saas.subscriptionplatform.entity.Usage;
 import com.saas.subscriptionplatform.repository.SubscriptionRepository;
 import com.saas.subscriptionplatform.repository.UsageRepository;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

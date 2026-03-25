@@ -14,6 +14,9 @@ import com.saas.subscriptionplatform.event.SubscriptionEvent;
 import com.saas.subscriptionplatform.event.SubscriptionEventProducer;
 import com.saas.subscriptionplatform.repository.SubscriptionRepository;
 
+import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
+import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
+
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
