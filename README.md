@@ -1,7 +1,8 @@
-# SaaS 구독 관리 플랫폼
+# 개인 구독 관리 대시보드
 
-B2B SaaS 환경에서 고객사별 구독 플랜 관리, API 사용량 트래킹, 청구서 자동 발행 기능을 제공하는 백엔드 플랫폼입니다.
-청구·과금 프로세스를 직접 설계하고, Redis와 Kafka를 도입해 동시성 문제와 도메인 간 결합도를 해소하였습니다.
+여러 계정에 분산된 구독 서비스의 결제일과 잔여 기간을 한 눈에 관리하기 위해 개발한 프로젝트.
+학생 무료 혜택용 깡통 계정부터 AI 서비스, 잡플래닛 같은 취준 도구까지
+계정별·서비스별로 흩어진 구독을 통합 관리하고, 청구서 자동 발행과 결제 이력을 추적한다.
 
 [![QA (pytest + playwright)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml/badge.svg)](https://github.com/simpledan123/Subscribe_Dashboard/actions/workflows/qa.yml)
 

@@ -68,7 +68,7 @@ function Dashboard() {
       const monthlyData = calculateMonthlyRevenue(invoices)
       setMonthlyRevenue(monthlyData)
 
-      // 최근 가입 고객
+      // 최근 추가 계정
       const sorted = [...tenants].sort((a, b) => 
         new Date(b.createdAt) - new Date(a.createdAt)
       ).slice(0, 5)
@@ -110,7 +110,7 @@ function Dashboard() {
       {/* 상단 통계 카드 */}
       <div className="stats-grid">
         <div className="stat-card">
-          <h3>총 고객사</h3>
+          <h3>등록 계정</h3>
           <p className="stat-number">{stats.tenants}</p>
         </div>
         <div className="stat-card">
@@ -118,11 +118,11 @@ function Dashboard() {
           <p className="stat-number">{stats.subscriptions}</p>
         </div>
         <div className="stat-card">
-          <h3>총 청구서</h3>
+          <h3>결제 내역</h3>
           <p className="stat-number">{stats.invoices}</p>
         </div>
         <div className="stat-card highlight">
-          <h3>총 매출</h3>
+          <h3>총 지출</h3>
           <p className="stat-number">₩{stats.revenue.toLocaleString()}</p>
         </div>
       </div>
@@ -196,9 +196,9 @@ function Dashboard() {
           )}
         </div>
 
-        {/* 최근 가입 고객 */}
+        {/* 최근 추가 계정 */}
         <div className="chart-card">
-          <h3>최근 가입 고객</h3>
+          <h3>최근 추가 계정</h3>
           <table className="mini-table">
             <thead>
               <tr>

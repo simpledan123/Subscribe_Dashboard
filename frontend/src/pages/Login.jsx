@@ -30,7 +30,7 @@ function Login({ onLogin }) {
   return (
     <div className="login-container" data-testid="login-container">
       <div className="login-box" data-testid="login-box">
-        <h2>SaaS Admin</h2>
+        <h2>구독 관리</h2>
         <p className="login-subtitle" data-testid="login-mode">
           {isRegister ? '회원가입' : '로그인'}
         </p>

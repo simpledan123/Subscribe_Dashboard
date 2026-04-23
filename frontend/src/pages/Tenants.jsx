@@ -48,13 +48,13 @@ function Tenants() {
 
   return (
     <div data-testid="tenant-page">
-      <h1 data-testid="tenant-title">고객사 관리</h1>
+      <h1 data-testid="tenant-title">계정 관리</h1>
 
       <form onSubmit={handleSubmit} className="form-card" data-testid="tenant-form">
         <input
           data-testid="tenant-companyName"
           type="text"
-          placeholder="회사명"
+          placeholder="계정명"
           value={form.companyName}
           onChange={(e) => setForm({ ...form, companyName: e.target.value })}
           required
@@ -89,7 +89,7 @@ function Tenants() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>회사명</th>
+            <th>계정명</th>
             <th>이메일</th>
             <th>전화번호</th>
             <th>상태</th>

@@ -59,7 +59,7 @@ function Subscriptions() {
           onChange={(e) => setForm({ ...form, tenantId: e.target.value })}
           required
         >
-          <option value="">고객사 선택</option>
+          <option value="">계정 선택</option>
           {tenants.map((t) => (
             <option key={t.id} value={t.id}>
               {t.companyName}
@@ -73,7 +73,7 @@ function Subscriptions() {
           onChange={(e) => setForm({ ...form, planId: e.target.value })}
           required
         >
-          <option value="">플랜 선택</option>
+          <option value="">서비스 선택</option>
           {plans.map((p) => (
             <option key={p.id} value={p.id}>
               {p.name}
@@ -99,8 +99,8 @@ function Subscriptions() {
         <thead>
           <tr>
             <th>ID</th>
-            <th>고객사</th>
-            <th>플랜</th>
+            <th>계정</th>
+            <th>서비스</th>
             <th>결제주기</th>
             <th>상태</th>
             <th>시작일</th>

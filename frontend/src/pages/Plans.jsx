@@ -66,13 +66,13 @@ function Plans() {
 
   return (
     <div data-testid="plan-page">
-      <h1 data-testid="plan-title">플랜 관리</h1>
+      <h1 data-testid="plan-title">서비스 관리</h1>
 
       <form onSubmit={handleSubmit} className="form-card" data-testid="plan-form">
         <input
           data-testid="plan-name"
           type="text"
-          placeholder="플랜명"
+          placeholder="서비스명"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
           required
@@ -87,21 +87,21 @@ function Plans() {
         <input
           data-testid="plan-monthlyPrice"
           type="number"
-          placeholder="월간 가격"
+          placeholder="월 결제금액"
           value={form.monthlyPrice}
           onChange={(e) => setForm({ ...form, monthlyPrice: Number(e.target.value) })}
         />
         <input
           data-testid="plan-yearlyPrice"
           type="number"
-          placeholder="연간 가격"
+          placeholder="연 결제금액"
           value={form.yearlyPrice}
           onChange={(e) => setForm({ ...form, yearlyPrice: Number(e.target.value) })}
         />
         <input
           data-testid="plan-maxApiCalls"
           type="number"
-          placeholder="API 호출 제한"
+          placeholder="사용 한도"
           value={form.maxApiCalls}
           onChange={(e) => setForm({ ...form, maxApiCalls: Number(e.target.value) })}
         />

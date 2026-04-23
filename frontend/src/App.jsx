@@ -38,7 +38,7 @@ function App() {
     <Router>
       <div className="app">
         <nav className="sidebar" data-testid="sidebar">
-          <h2 data-testid="app-title">SaaS Admin</h2>
+          <h2 data-testid="app-title">구독 관리</h2>
           <ul>
             <li>
               <Link to="/" data-testid="nav-dashboard">
@@ -47,12 +47,12 @@ function App() {
             </li>
             <li>
               <Link to="/tenants" data-testid="nav-tenants">
-                고객사 관리
+                계정 관리
               </Link>
             </li>
             <li>
               <Link to="/plans" data-testid="nav-plans">
-                플랜 관리
+                서비스 관리
               </Link>
             </li>
             <li>
@@ -62,7 +62,7 @@ function App() {
             </li>
             <li>
               <Link to="/invoices" data-testid="nav-invoices">
-                청구서 관리
+                결제 내역
               </Link>
             </li>
             <li>
