@@ -48,8 +48,7 @@ def _ensure_dirs_and_wait(ui_base_url, api_base_url):
     SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
 
     # API & UI 뜰 때까지 기다리기 (로컬에서 서버 먼저 켜두는 전제)
-    # API는 tenants 엔드포인트가 보통 존재하므로 그걸로 체크
-    _wait_until_ok(f"{api_base_url}/tenants", WAIT_TIMEOUT)
+    _wait_until_ok(f"{api_base_url}/accounts", WAIT_TIMEOUT)
     _wait_until_ok(f"{ui_base_url}/", WAIT_TIMEOUT)
 
 @pytest.fixture(scope="session")
@@ -75,6 +74,7 @@ def ensure_user_and_token(http, api_base_url, test_user):
     r.raise_for_status()
     token = r.json().get("token")
     assert token, "Login succeeded but token missing"
+    http.headers.update({"Authorization": f"Bearer {token}"})
     return token
 
 @pytest.fixture

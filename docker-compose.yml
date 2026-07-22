@@ -2,7 +2,7 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_DB: saas_subscription
+      POSTGRES_DB: personal_subscription
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: 1234
     ports:
@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d saas_subscription"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d personal_subscription"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -52,13 +52,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/saas_subscription
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/personal_subscription
       SPRING_DATASOURCE_USERNAME: postgres
       SPRING_DATASOURCE_PASSWORD: 1234
       SPRING_DATA_REDIS_HOST: redis
       SPRING_DATA_REDIS_PORT: 6379
       SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       JWT_SECRET: mySecretKeyForJwtTokenMustBe32BytesLong!
+      SPRING_PROFILES_ACTIVE: demo
     depends_on:
       postgres:
         condition: service_healthy

@@ -2,6 +2,8 @@ package com.saas.subscriptionplatform.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -17,25 +19,36 @@ public class Subscription {
     private Long id;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "tenant_id", nullable = false)
-    private Tenant tenant;
+    @JoinColumn(name = "service_account_id", nullable = false)
+    private ServiceAccount account;
     
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "plan_id", nullable = false)
-    private Plan plan;
+    @JoinColumn(name = "service_plan_id", nullable = false)
+    private ServicePlan servicePlan;
     
     @Column(nullable = false)
-    private String billingCycle; // MONTHLY, YEARLY
+    private String billingCycle; // MONTHLY, YEARLY, FREE
     
     @Column(nullable = false)
     private String status; // ACTIVE, CANCELLED, EXPIRED, PENDING
     
     @Column(nullable = false)
-    private LocalDateTime startDate;
+    private LocalDate startDate;
     
-    private LocalDateTime endDate;
+    private LocalDate endDate;
     
-    private LocalDateTime nextBillingDate;
+    private LocalDate nextBillingDate;
+
+    @Column(nullable = false)
+    private BigDecimal price;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private Boolean autoRenew = true;
+
+    @Column(nullable = false)
+    @Builder.Default
+    private String benefitType = "PAID"; // PAID, FREE_TRIAL, STUDENT, FAMILY
     
     private LocalDateTime cancelledAt;
     

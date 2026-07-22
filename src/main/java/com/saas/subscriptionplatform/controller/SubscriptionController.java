@@ -4,46 +4,26 @@ import com.saas.subscriptionplatform.entity.Subscription;
 import com.saas.subscriptionplatform.service.SubscriptionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
-import java.util.Map;
 
-@RestController
-@RequestMapping("/api/subscriptions")
-@RequiredArgsConstructor
+@RestController @RequestMapping("/api/subscriptions") @RequiredArgsConstructor
 public class SubscriptionController {
-    
-    private final SubscriptionService subscriptionService;
-    
-    @GetMapping
-    public List<Subscription> findAll() {
-        return subscriptionService.findAll();
+    private final SubscriptionService service;
+
+    public record SubscriptionRequest(Long accountId, Long servicePlanId, String billingCycle, String benefitType,
+        LocalDate startDate, LocalDate endDate, LocalDate nextBillingDate, BigDecimal price, Boolean autoRenew) {}
+
+    @GetMapping public List<Subscription> findAll() { return service.findAll(); }
+    @GetMapping("/{id}") public Subscription findOne(@PathVariable Long id) { return service.findById(id); }
+    @GetMapping("/account/{accountId}") public List<Subscription> byAccount(@PathVariable Long accountId) { return service.findByAccount(accountId); }
+    @PostMapping public Subscription create(@RequestBody SubscriptionRequest b) {
+        return service.create(b.accountId(), b.servicePlanId(), b.billingCycle(), b.benefitType(), b.startDate(),
+            b.endDate(), b.nextBillingDate(), b.price(), b.autoRenew());
     }
-    
-    @GetMapping("/{id}")
-    public Subscription findById(@PathVariable Long id) {
-        return subscriptionService.findById(id);
+    @PutMapping("/{id}") public Subscription update(@PathVariable Long id, @RequestBody SubscriptionRequest b) {
+        return service.update(id, b.servicePlanId(), b.nextBillingDate(), b.endDate(), b.price(), b.autoRenew(), b.benefitType());
     }
-    
-    @GetMapping("/tenant/{tenantId}")
-    public List<Subscription> findByTenant(@PathVariable Long tenantId) {
-        return subscriptionService.findByTenant(tenantId);
-    }
-    
-    @PostMapping
-    public Subscription create(@RequestBody Map<String, Object> request) {
-        Long tenantId = Long.valueOf(request.get("tenantId").toString());
-        Long planId = Long.valueOf(request.get("planId").toString());
-        String billingCycle = request.get("billingCycle").toString();
-        return subscriptionService.create(tenantId, planId, billingCycle);
-    }
-    
-    @PutMapping("/{id}/change-plan")
-    public Subscription changePlan(@PathVariable Long id, @RequestBody Map<String, Long> request) {
-        return subscriptionService.changePlan(id, request.get("planId"));
-    }
-    
-    @PutMapping("/{id}/cancel")
-    public Subscription cancel(@PathVariable Long id) {
-        return subscriptionService.cancel(id);
-    }
+    @PutMapping("/{id}/cancel") public Subscription cancel(@PathVariable Long id) { return service.cancel(id); }
 }

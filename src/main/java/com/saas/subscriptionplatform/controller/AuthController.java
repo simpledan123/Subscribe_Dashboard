@@ -16,8 +16,8 @@ public class AuthController {
     @PostMapping("/register")
     public ResponseEntity<?> register(@RequestBody Map<String, String> request) {
         try {
-            var admin = authService.register(request.get("username"), request.get("password"));
-            return ResponseEntity.ok(Map.of("message", "회원가입 성공", "username", admin.getUsername()));
+            var user = authService.register(request.get("username"), request.get("password"));
+            return ResponseEntity.ok(Map.of("message", "회원가입 성공", "username", user.getUsername()));
         } catch (RuntimeException e) {
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

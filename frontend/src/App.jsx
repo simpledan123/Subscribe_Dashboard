@@ -1,118 +1,61 @@
-import { useState, useEffect } from 'react'
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, NavLink, Route, Routes } from 'react-router-dom'
+import { useState } from 'react'
 import Dashboard from './pages/Dashboard'
-import Tenants from './pages/Tenants'
-import Plans from './pages/Plans'
+import Accounts from './pages/Accounts'
+import Services from './pages/Services'
 import Subscriptions from './pages/Subscriptions'
-import Invoices from './pages/Invoices'
-import Usages from './pages/Usages'
+import Payments from './pages/Payments'
+import Benefits from './pages/Benefits'
 import Login from './pages/Login'
 import './App.css'
 
-function App() {
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+const menus = [
+  ['/', '⌂', '대시보드', 'nav-dashboard'],
+  ['/accounts', '◎', '계정 관리', 'nav-accounts'],
+  ['/services', '▦', '서비스 관리', 'nav-services'],
+  ['/subscriptions', '↻', '구독 관리', 'nav-subs'],
+  ['/payments', '₩', '결제 내역', 'nav-payments'],
+  ['/benefits', '◔', '혜택·사용량', 'nav-benefits'],
+]
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      setIsLoggedIn(true)
-    }
-  }, [])
+export default function App() {
+  const [loggedIn, setLoggedIn] = useState(Boolean(localStorage.getItem('token')))
+  if (!loggedIn) return <Login onLogin={() => setLoggedIn(true)} />
 
-  const handleLogin = () => {
-    setIsLoggedIn(true)
-  }
-
-  const handleLogout = () => {
+  const logout = () => {
     localStorage.removeItem('token')
-    setIsLoggedIn(false)
+    setLoggedIn(false)
   }
-
-  if (!isLoggedIn) {
-    return <Login onLogin={handleLogin} />
-  }
-
-  
 
   return (
-    <Router>
-      <div className="app">
-        <nav className="sidebar" data-testid="sidebar">
-          <h2 data-testid="app-title">구독 관리</h2>
-          <ul>
-            <li>
-              <Link to="/" data-testid="nav-dashboard">
-                대시보드
-              </Link>
-            </li>
-            <li>
-              <Link to="/tenants" data-testid="nav-tenants">
-                계정 관리
-              </Link>
-            </li>
-            <li>
-              <Link to="/plans" data-testid="nav-plans">
-                서비스 관리
-              </Link>
-            </li>
-            <li>
-              <Link to="/subscriptions" data-testid="nav-subs">
-                구독 관리
-              </Link>
-            </li>
-            <li>
-              <Link to="/invoices" data-testid="nav-invoices">
-                결제 내역
-              </Link>
-            </li>
-            <li>
-              <Link to="/usages" data-testid="nav-usages">
-                사용량 관리
-              </Link>
-            </li>
-          </ul>
-          <button
-            className="logout-btn"
-            data-testid="logout"
-            onClick={handleLogout}
-          >
-            로그아웃
-          </button>
-        </nav>
-
-        <main className="content" data-testid="content">
+    <BrowserRouter>
+      <div className="shell">
+        <aside className="sidebar" data-testid="sidebar">
+          <div className="brand"><span className="brand-mark">S</span><div><strong>Subtrack</strong><small>나의 구독 한눈에</small></div></div>
+          <nav>
+            <p className="nav-label">MENU</p>
+            {menus.map(([to, icon, label, testid]) => (
+              <NavLink key={to} to={to} end={to === '/'} data-testid={testid}>
+                <span className="nav-icon">{icon}</span>{label}
+              </NavLink>
+            ))}
+          </nav>
+          <div className="sidebar-foot">
+            <div className="profile"><span>윤</span><div><strong>윤단</strong><small>개인 워크스페이스</small></div></div>
+            <button onClick={logout} data-testid="logout">로그아웃</button>
+          </div>
+        </aside>
+        <main className="main-content" data-testid="content">
           <Routes>
             <Route path="/" element={<Dashboard />} />
-            <Route path="/tenants" element={<Tenants />} />
-            <Route path="/plans" element={<Plans />} />
+            <Route path="/accounts" element={<Accounts />} />
+            <Route path="/services" element={<Services />} />
             <Route path="/subscriptions" element={<Subscriptions />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/usages" element={<Usages />} />
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/benefits" element={<Benefits />} />
           </Routes>
         </main>
       </div>
-    </Router>
+    </BrowserRouter>
   )
 }
-
-useEffect(() => {
-  const token = localStorage.getItem('token')
-  if (token) {
-    axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-    setIsLoggedIn(true)
-  }
-}, [])
-
-const handleLogin = () => {
-  const token = localStorage.getItem('token')
-  axios.defaults.headers.common['Authorization'] = `Bearer ${token}`
-  setIsLoggedIn(true)
-}
-
-const handleLogout = () => {
-  localStorage.removeItem('token')
-  delete axios.defaults.headers.common['Authorization']
-  setIsLoggedIn(false)
-}
-
-export default App

@@ -38,8 +38,8 @@ public class RedisConfig {
      *   JavaTimeModule을 등록한 ObjectMapper를 명시적으로 주입해 해결.
      *
      * 캐시별 TTL 전략:
-     *   - plans: 1시간 (플랜 정보는 자주 바뀌지 않음)
-     *   - tenants: 10분 (고객사 상태 변경 가능성 고려)
+     *   - servicePlans: 1시간 (가격·한도 정보는 자주 바뀌지 않음)
+     *   - serviceAccounts: 10분 (계정 메모·상태 변경을 빠르게 반영)
      */
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
@@ -65,9 +65,8 @@ public class RedisConfig {
                 .disableCachingNullValues();
 
         Map<String, RedisCacheConfiguration> cacheConfigs = Map.of(
-                "plans",   defaultConfig.entryTtl(Duration.ofHours(1)),
-                "tenants", defaultConfig.entryTtl(Duration.ofMinutes(10)),
-                "planLimits", defaultConfig.entryTtl(Duration.ofMinutes(10))
+                "servicePlans", defaultConfig.entryTtl(Duration.ofHours(1)),
+                "serviceAccounts", defaultConfig.entryTtl(Duration.ofMinutes(10))
         );
 
         return RedisCacheManager.builder(connectionFactory)

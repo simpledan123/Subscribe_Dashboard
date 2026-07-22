@@ -1,112 +1,69 @@
 package com.saas.subscriptionplatform.service;
 
+import com.saas.subscriptionplatform.entity.*;
+import com.saas.subscriptionplatform.event.SubscriptionEvent;
+import com.saas.subscriptionplatform.event.SubscriptionEventProducer;
+import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
+import com.saas.subscriptionplatform.repository.SubscriptionRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
-import org.springframework.cache.CacheManager;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-
-import com.saas.subscriptionplatform.entity.Plan;
-import com.saas.subscriptionplatform.entity.Subscription;
-import com.saas.subscriptionplatform.entity.Tenant;
-import com.saas.subscriptionplatform.event.SubscriptionEvent;
-import com.saas.subscriptionplatform.event.SubscriptionEventProducer;
-import com.saas.subscriptionplatform.repository.SubscriptionRepository;
-
-import com.saas.subscriptionplatform.exception.ResourceNotFoundException;
-import com.saas.subscriptionplatform.exception.ApiLimitExceededException;
-
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-
-@Slf4j
-@Service
-@RequiredArgsConstructor
-@Transactional(readOnly = true)
+@Service @RequiredArgsConstructor @Transactional(readOnly = true)
 public class SubscriptionService {
-
-    private final SubscriptionRepository subscriptionRepository;
-    private final TenantService tenantService;
-    private final PlanService planService;
+    private final SubscriptionRepository repository;
+    private final ServiceAccountService accountService;
+    private final ServicePlanService planService;
     private final SubscriptionEventProducer eventProducer;
-    private final CacheManager cacheManager;
 
-    public List<Subscription> findAll() {
-        return subscriptionRepository.findAll();
-    }
-
+    public List<Subscription> findAll() { return repository.findAll(); }
     public Subscription findById(Long id) {
-        return subscriptionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Subscription not found"));
+        return repository.findById(id).orElseThrow(() -> new ResourceNotFoundException("구독을 찾을 수 없습니다."));
     }
-
-    public List<Subscription> findByTenant(Long tenantId) {
-        Tenant tenant = tenantService.findById(tenantId);
-        return subscriptionRepository.findByTenant(tenant);
+    public List<Subscription> findByAccount(Long accountId) {
+        return repository.findByAccount(accountService.findById(accountId));
     }
 
     @Transactional
-    public Subscription create(Long tenantId, Long planId, String billingCycle) {
-        Tenant tenant = tenantService.findById(tenantId);
-        Plan plan = planService.findById(planId);
+    public Subscription create(Long accountId, Long planId, String billingCycle, String benefitType,
+                               LocalDate startDate, LocalDate endDate, LocalDate nextBillingDate,
+                               BigDecimal price, Boolean autoRenew) {
+        ServiceAccount account = accountService.findById(accountId);
+        ServicePlan plan = planService.findById(planId);
+        LocalDate start = startDate == null ? LocalDate.now() : startDate;
+        String cycle = billingCycle == null ? "MONTHLY" : billingCycle;
+        BigDecimal actualPrice = price == null ? defaultPrice(plan, cycle) : price;
+        LocalDate next = nextBillingDate;
+        if (next == null && !"FREE".equals(cycle)) {
+            next = "YEARLY".equals(cycle) ? start.plusYears(1) : start.plusMonths(1);
+        }
 
-        LocalDateTime now = LocalDateTime.now();
-        LocalDateTime nextBilling = billingCycle.equals("MONTHLY")
-                ? now.plusMonths(1)
-                : now.plusYears(1);
-
-        Subscription subscription = Subscription.builder()
-                .tenant(tenant)
-                .plan(plan)
-                .billingCycle(billingCycle)
-                .status("ACTIVE")
-                .startDate(now)
-                .nextBillingDate(nextBilling)
-                .build();
-
-        Subscription saved = subscriptionRepository.save(subscription);
-
-        SubscriptionEvent event = SubscriptionEvent.builder()
-                .eventType(SubscriptionEvent.EventType.CREATED)
-                .subscriptionId(saved.getId())
-                .tenantId(tenantId)
-                .planId(planId)
-                .billingCycle(billingCycle)
-                .occurredAt(now)
-                .build();
-
-        eventProducer.publishCreated(event);
-        log.info("구독 생성 이벤트 발행 - subscriptionId: {}", saved.getId());
-
+        Subscription saved = repository.save(Subscription.builder()
+            .account(account).servicePlan(plan).billingCycle(cycle).benefitType(benefitType == null ? "PAID" : benefitType)
+            .status("ACTIVE").startDate(start).endDate(endDate).nextBillingDate(next).price(actualPrice)
+            .autoRenew(autoRenew == null || autoRenew).build());
+        publish(saved, SubscriptionEvent.EventType.CREATED);
         return saved;
     }
 
     @Transactional
-    public Subscription changePlan(Long subscriptionId, Long newPlanId) {
-        Subscription subscription = findById(subscriptionId);
-        Plan newPlan = planService.findById(newPlanId);
-        subscription.setPlan(newPlan);
-        Subscription saved = subscriptionRepository.save(subscription);
-
-        // planLimits 캐시 무효화 (tenantId 기준)
-        var cache = cacheManager.getCache("planLimits");
-        if (cache != null) {
-            cache.evict(saved.getTenant().getId());
-        }
-
-        SubscriptionEvent event = SubscriptionEvent.builder()
-                .eventType(SubscriptionEvent.EventType.PLAN_CHANGED)
-                .subscriptionId(saved.getId())
-                .tenantId(saved.getTenant().getId())
-                .planId(newPlanId)
-                .billingCycle(saved.getBillingCycle())
-                .occurredAt(LocalDateTime.now())
-                .build();
-
-        eventProducer.publishPlanChanged(event);
-        log.info("플랜 변경 이벤트 발행 - subscriptionId: {}, 새 planId: {}", saved.getId(), newPlanId);
-
+    public Subscription update(Long id, Long planId, LocalDate nextBillingDate, LocalDate endDate,
+                               BigDecimal price, Boolean autoRenew, String benefitType) {
+        Subscription subscription = findById(id);
+        if (planId != null) subscription.setServicePlan(planService.findById(planId));
+        if (nextBillingDate != null) subscription.setNextBillingDate(nextBillingDate);
+        subscription.setEndDate(endDate);
+        if (price != null) subscription.setPrice(price);
+        if (autoRenew != null) subscription.setAutoRenew(autoRenew);
+        if (benefitType != null) subscription.setBenefitType(benefitType);
+        Subscription saved = repository.save(subscription);
+        publish(saved, SubscriptionEvent.EventType.UPDATED);
         return saved;
     }
 
@@ -114,27 +71,39 @@ public class SubscriptionService {
     public Subscription cancel(Long id) {
         Subscription subscription = findById(id);
         subscription.setStatus("CANCELLED");
+        subscription.setAutoRenew(false);
         subscription.setCancelledAt(LocalDateTime.now());
-        Subscription saved = subscriptionRepository.save(subscription);
-
-        // planLimits 캐시 무효화 (tenantId 기준)
-        var cache = cacheManager.getCache("planLimits");
-        if (cache != null) {
-            cache.evict(saved.getTenant().getId());
-        }
-
-        SubscriptionEvent event = SubscriptionEvent.builder()
-                .eventType(SubscriptionEvent.EventType.CANCELLED)
-                .subscriptionId(saved.getId())
-                .tenantId(saved.getTenant().getId())
-                .planId(saved.getPlan().getId())
-                .billingCycle(saved.getBillingCycle())
-                .occurredAt(LocalDateTime.now())
-                .build();
-
-        eventProducer.publishCancelled(event);
-        log.info("구독 취소 이벤트 발행 - subscriptionId: {}", saved.getId());
-
+        Subscription saved = repository.save(subscription);
+        publish(saved, SubscriptionEvent.EventType.CANCELLED);
         return saved;
+    }
+
+    @Transactional
+    public Subscription advanceBillingDate(Long id, LocalDate completedDate) {
+        Subscription subscription = findById(id);
+        if ("MONTHLY".equals(subscription.getBillingCycle())) {
+            subscription.setNextBillingDate(completedDate.plusMonths(1));
+        } else if ("YEARLY".equals(subscription.getBillingCycle())) {
+            subscription.setNextBillingDate(completedDate.plusYears(1));
+        }
+        return repository.save(subscription);
+    }
+
+    private BigDecimal defaultPrice(ServicePlan plan, String cycle) {
+        if ("FREE".equals(cycle)) return BigDecimal.ZERO;
+        return "YEARLY".equals(cycle) ? plan.getYearlyPrice() : plan.getMonthlyPrice();
+    }
+
+    private void publish(Subscription saved, SubscriptionEvent.EventType type) {
+        SubscriptionEvent event = SubscriptionEvent.builder().eventType(type).subscriptionId(saved.getId())
+            .accountId(saved.getAccount().getId()).servicePlanId(saved.getServicePlan().getId())
+            .billingCycle(saved.getBillingCycle()).occurredAt(LocalDateTime.now()).build();
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override public void afterCommit() { eventProducer.publish(event); }
+            });
+        } else {
+            eventProducer.publish(event);
+        }
     }
 }

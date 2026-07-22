@@ -30,14 +30,6 @@ public class GlobalExceptionHandler {
                 .body(errorBody(HttpStatus.BAD_REQUEST, e.getMessage()));
     }
 
-    // 429 - API 호출 한도 초과
-    @ExceptionHandler(ApiLimitExceededException.class)
-    public ResponseEntity<Map<String, Object>> handleLimitExceeded(ApiLimitExceededException e) {
-        log.warn("API limit exceeded: {}", e.getMessage());
-        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
-                .body(errorBody(HttpStatus.TOO_MANY_REQUESTS, e.getMessage()));
-    }
-
     // 500 - 그 외 모든 예외
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleException(Exception e) {

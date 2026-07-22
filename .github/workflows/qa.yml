@@ -13,13 +13,13 @@ jobs:
       postgres:
         image: postgres:16
         env:
-          POSTGRES_DB: saas_subscription
+          POSTGRES_DB: personal_subscription
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: 1234
         ports:
           - 5432:5432
         options: >-
-          --health-cmd="pg_isready -U postgres -d saas_subscription"
+          --health-cmd="pg_isready -U postgres -d personal_subscription"
           --health-interval=5s
           --health-timeout=5s
           --health-retries=20
@@ -76,7 +76,7 @@ jobs:
 
       - name: Start backend (Spring Boot)
         env:
-          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/saas_subscription
+          SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/personal_subscription
           SPRING_DATASOURCE_USERNAME: postgres
           SPRING_DATASOURCE_PASSWORD: 1234
           SPRING_DATA_REDIS_HOST: localhost
@@ -89,14 +89,14 @@ jobs:
 
           echo "Waiting for backend..."
           for i in {1..150}; do
-            if curl -sSf http://localhost:8080/api/tenants > /dev/null; then
+            if curl -sSf http://localhost:8080/api-docs > /dev/null; then
               echo "Backend is up!"
               break
             fi
             sleep 2
           done
 
-          if ! curl -sSf http://localhost:8080/api/tenants > /dev/null; then
+          if ! curl -sSf http://localhost:8080/api-docs > /dev/null; then
             echo "===== BACKEND LOG ====="
             cat backend.log
             exit 1

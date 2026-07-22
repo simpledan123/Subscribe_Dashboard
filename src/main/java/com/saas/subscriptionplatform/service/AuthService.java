@@ -4,8 +4,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.saas.subscriptionplatform.entity.Admin;
-import com.saas.subscriptionplatform.repository.AdminRepository;
+import com.saas.subscriptionplatform.entity.AppUser;
+import com.saas.subscriptionplatform.repository.AppUserRepository;
 import com.saas.subscriptionplatform.security.JwtUtil;
 
 import lombok.RequiredArgsConstructor;
@@ -14,31 +14,34 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AuthService {
     
-    private final AdminRepository adminRepository;
+    private final AppUserRepository appUserRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
     
     @Transactional
-    public Admin register(String username, String password) {
-        if (adminRepository.findByUsername(username).isPresent()) {
-            throw new RuntimeException("이미 존재하는 사용자입니다.");
+    public AppUser register(String username, String password) {
+        if (username == null || username.isBlank() || password == null || password.length() < 4) {
+            throw new IllegalArgumentException("아이디와 4자 이상의 비밀번호를 입력해 주세요.");
+        }
+        if (appUserRepository.findByUsername(username).isPresent()) {
+            throw new IllegalArgumentException("이미 존재하는 사용자입니다.");
         }
         
-        Admin admin = Admin.builder()
+        AppUser user = AppUser.builder()
             .username(username)
             .password(passwordEncoder.encode(password))
-            .role("ADMIN")
+            .role("USER")
             .build();
         
-        return adminRepository.save(admin);
+        return appUserRepository.save(user);
     }
     
     public String login(String username, String password) {
-        Admin admin = adminRepository.findByUsername(username)
-            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        AppUser user = appUserRepository.findByUsername(username)
+            .orElseThrow(() -> new IllegalArgumentException("아이디 또는 비밀번호를 확인해 주세요."));
         
-        if (!passwordEncoder.matches(password, admin.getPassword())) {
-            throw new RuntimeException("비밀번호가 일치하지 않습니다.");
+        if (!passwordEncoder.matches(password, user.getPassword())) {
+            throw new IllegalArgumentException("아이디 또는 비밀번호를 확인해 주세요.");
         }
         
         return jwtUtil.generateToken(username);

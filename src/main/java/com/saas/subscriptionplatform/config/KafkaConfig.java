@@ -23,7 +23,7 @@ public class KafkaConfig {
 
     public static final String TOPIC_SUBSCRIPTION_CREATED   = "subscription.created";
     public static final String TOPIC_SUBSCRIPTION_CANCELLED = "subscription.cancelled";
-    public static final String TOPIC_PLAN_CHANGED           = "subscription.plan-changed";
+    public static final String TOPIC_SUBSCRIPTION_UPDATED   = "subscription.updated";
 
     @Value("${spring.kafka.bootstrap-servers:localhost:9092}")
     private String bootstrapServers;
@@ -75,8 +75,8 @@ public class KafkaConfig {
     }
 
     @Bean
-    public NewTopic planChangedTopic() {
-        return TopicBuilder.name(TOPIC_PLAN_CHANGED)
+    public NewTopic subscriptionUpdatedTopic() {
+        return TopicBuilder.name(TOPIC_SUBSCRIPTION_UPDATED)
                 .partitions(3)
                 .replicas(1)
                 .build();

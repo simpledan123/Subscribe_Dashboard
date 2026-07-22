@@ -1,43 +1,34 @@
 spring:
   application:
-    name: subscription-platform
-
+    name: personal-subscription-dashboard
   datasource:
-    url: jdbc:postgresql://localhost:5432/saas_subscription
-    username: postgres
-    password: 1234
-
-  jwt:
-    secret: ${JWT_SECRET:mySecretKeyForJwtTokenMustBe32BytesLong!}
-
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/personal_subscription}
+    username: ${SPRING_DATASOURCE_USERNAME:postgres}
+    password: ${SPRING_DATASOURCE_PASSWORD:1234}
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    open-in-view: false
     properties:
       hibernate:
         format_sql: true
-
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${SPRING_DATA_REDIS_HOST:localhost}
+      port: ${SPRING_DATA_REDIS_PORT:6379}
       timeout: 2000ms
-
   kafka:
-    bootstrap-servers: localhost:9092
-    producer:
-      key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
-      properties:
-        spring.json.add.type.headers: false
+    bootstrap-servers: ${SPRING_KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     consumer:
-      group-id: subscription-group
+      group-id: personal-subscription-group
       auto-offset-reset: earliest
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
       properties:
         spring.json.trusted.packages: "com.saas.subscriptionplatform.event"
+
+jwt:
+  secret: ${JWT_SECRET:mySecretKeyForJwtTokenMustBe32BytesLong!}
 
 server:
   port: 8080
